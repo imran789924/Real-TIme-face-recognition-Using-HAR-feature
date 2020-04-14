@@ -153,6 +153,14 @@ def load_dataset(directory):
 
 from numpy import savez_compressed
 
+
+
+
+
+
+
+
+#DON'T RUN IF DATA LOADED
 # load train dataset
 trainX, trainy = load_dataset('personal_data/train/')
 print(trainX.shape, trainy.shape)
@@ -191,6 +199,13 @@ def get_embedding(model, face_pixels):
     yhat = model.predict(samples)
     return yhat[0]
 
+
+
+
+
+
+
+#DON'T RUN IF DATA LOADED
 # load the face dataset
 data = load('personal_data.npz')
 trainX, trainy = data['arr_0'], data['arr_1']
@@ -261,7 +276,7 @@ font = cv2.FONT_HERSHEY_SIMPLEX
 #iniciate id counter
 id = 0
 # names related to ids: example ==> Marcelo: id=1,  etc
-names = ['None', 'Anik', 'Araf', 'Imran', 'Z', 'W'] 
+#names = ['None', 'Anik', 'Araf', 'Imran', 'Z', 'W'] 
 # Initialize and start realtime video capture
 cam = cv2.VideoCapture(0)
 cam.set(3, 640) # set video widht
@@ -271,40 +286,58 @@ minW = 0.1*cam.get(3)
 minH = 0.1*cam.get(4)
 while True:
     print('taking image....')
-    ret, img =cam.read()
-    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY)
-    
-    plt.imshow(img)
-    
-    image = Image.fromarray(img.astype('uint8'), 'RGB')
-    testX = extract_face_rt(image)
-    
-    if(len(testX) < 1):
-        continue
-    
-    testX = get_embedding(model, testX)
+    ret, img_main =cam.read()
+    gray = cv2.cvtColor(img_main,cv2.COLOR_BGR2GRAY)
     
     
-    testX = asarray(testX)
     
-    testX = testX.reshape(1,-1)
+    faces = faceCascade.detectMultiScale( 
+        gray,
+        scaleFactor = 1.2,
+        minNeighbors = 5,
+        minSize = (int(minW), int(minH)),
+       )
+    for(x,y,w,h) in faces:
+        cv2.rectangle(img_main, (x,y), (x+w,y+h), (0,255,0), 2)
     
-    id = classifier.predict(testX)
     
-    print(out_encoder.inverse_transform(id))
-    
-    """cv2.putText(
-                img, 
-                str(id), 
-                (x+5,y-5), 
-                font, 
-                1, 
-                (255,255,255), 
-                2
-               )"""
+
+        img = gray[y:y+h,x:x+w]
+        img_rgb = cv2.cvtColor(img,cv2.COLOR_GRAY2RGB)
+        
+        res = cv2.resize(img_rgb, dsize=(160, 160), interpolation=cv2.INTER_CUBIC)
+        
+        #testX = Image.fromarray(img_rgb.astype('uint8'), 'RGB')
+        #testX = extract_face_rt(image)
+        
+        if(len(res) < 1):
+            continue
+        
+        testX = get_embedding(model, res)
+        
+        
+        testX = asarray(testX)
+        
+        testX = testX.reshape(1,-1)
+        
+        id = classifier.predict(testX)
+        
+        id_text = out_encoder.inverse_transform(id)
+        
+        print(id_text)
+        
+        cv2.putText(
+                    img_main, 
+                    str(id_text), 
+                    (x+5,y-5), 
+                    font, 
+                    1, 
+                    (255,255,255), 
+                    2
+                   )
          
     
-    cv2.imshow('camera',img) 
+    cv2.imshow('camera',img_main) 
     k = cv2.waitKey(10) & 0xff # Press 'ESC' for exiting video
     if k == 27:
         break
